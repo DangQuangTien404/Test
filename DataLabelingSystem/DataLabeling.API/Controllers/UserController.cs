@@ -17,6 +17,33 @@ namespace DataLabeling.API.Controllers
             _userService = userService;
         }
 
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginDto dto)
+        {
+            var result = await _userService.LoginAsync(dto);
+
+            if (result == null)
+            {
+                return Unauthorized("Tên đăng nhập hoặc mật khẩu không chính xác.");
+            }
+
+            return Ok(result);
+        }
+
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDto dto)
+        {
+            try
+            {
+                var result = await _userService.RefreshTokenAsync(dto);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetAllUsers()
         {
