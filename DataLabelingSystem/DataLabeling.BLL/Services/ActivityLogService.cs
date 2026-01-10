@@ -13,9 +13,14 @@ namespace DataLabeling.BLL.Services
     {
         private readonly IUnitOfWork _unitOfWork;
 
-        public ActivityLogService(IUnitOfWork unitOfWork)
+        private readonly IServiceProvider _serviceProvider;
+
+        private readonly INotificationService _notificationService;
+
+        public ActivityLogService(IUnitOfWork unitOfWork, INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
+            _notificationService = notificationService;
         }
 
         public async Task LogAsync(int? userId, string action, string entityType, string entityId, string details = "")
@@ -32,6 +37,26 @@ namespace DataLabeling.BLL.Services
 
             await _unitOfWork.Repository<ActivityLog>().AddAsync(log);
             await _unitOfWork.CompleteAsync();
+
+            string userName = "System/Unknown";
+            if (userId.HasValue)
+            {
+                var user = await _unitOfWork.Repository<User>().GetByIdAsync(userId.Value);
+                if (user != null) userName = user.Username;
+            }
+
+            var logDto = new ActivityLogDto
+            {
+                Id = log.Id,
+                UserName = userName,
+                Action = log.Action,
+                EntityType = log.EntityType,
+                EntityId = log.EntityId,
+                Details = log.Details,
+                Timestamp = log.Timestamp
+            };
+
+            await _notificationService.NotifyNewLogAsync(logDto);
         }
 
         public async Task<IEnumerable<ActivityLogDto>> GetLogsAsync()

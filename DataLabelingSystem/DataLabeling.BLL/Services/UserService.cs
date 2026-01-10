@@ -2,7 +2,7 @@
 using DataLabeling.Core.Entities;
 using DataLabeling.Core.Enums;
 using DataLabeling.Core.Interfaces;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration; // Cần cái này để đọc appsettings
 using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
@@ -19,8 +19,7 @@ namespace DataLabeling.BLL.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IActivityLogService _logService;
-        private readonly IConfiguration _configuration;
-
+        private readonly IConfiguration _configuration; 
         public UserService(IUnitOfWork unitOfWork, IActivityLogService logService, IConfiguration configuration)
         {
             _unitOfWork = unitOfWork;

@@ -1,5 +1,5 @@
 ﻿using DataLabeling.Core.Enums;
-using System;
+using System; // Nhớ thêm dòng này
 using System.Collections.Generic;
 
 namespace DataLabeling.Core.Entities

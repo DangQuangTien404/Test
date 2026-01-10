@@ -27,7 +27,7 @@ namespace DataLabeling.API.Controllers
                 return Unauthorized("Tên đăng nhập hoặc mật khẩu không chính xác.");
             }
 
-            return Ok(result);
+            return Ok(result); 
         }
 
         [HttpPost("refresh-token")]

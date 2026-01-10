@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DataLabeling.DAL.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260108032356_InitialCreate")]
+    [Migration("20260110063432_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -206,6 +206,12 @@ namespace DataLabeling.DAL.Migrations
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RefreshToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("RefreshTokenExpiryTime")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("Role")
                         .HasColumnType("int");

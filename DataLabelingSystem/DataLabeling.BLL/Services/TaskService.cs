@@ -13,11 +13,13 @@ namespace DataLabeling.BLL.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IActivityLogService _logService;
+        private readonly INotificationService _notificationService; 
 
-        public TaskService(IUnitOfWork unitOfWork, IActivityLogService logService)
+        public TaskService(IUnitOfWork unitOfWork, IActivityLogService logService, INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
             _logService = logService;
+            _notificationService = notificationService;
         }
 
         public async Task AssignTasksAsync(AssignTaskDto dto)
@@ -37,17 +39,86 @@ namespace DataLabeling.BLL.Services
 
                     task.AnnotatorId = dto.AnnotatorId;
                     task.Status = ProjectTaskStatus.New;
-
                     _unitOfWork.Repository<LabelTask>().Update(task);
                 }
             }
             await _unitOfWork.CompleteAsync();
+
+            await _notificationService.NotifyUserAsync(dto.AnnotatorId.ToString(), $"Bạn vừa được phân công {dto.TaskIds.Count} nhiệm vụ mới.");
+        }
+
+        public async Task SubmitLabelAsync(SubmitLabelDto dto)
+        {
+            var task = await _unitOfWork.Repository<LabelTask>().GetByIdAsync(dto.TaskId);
+            if (task == null) throw new Exception("Nhiệm vụ không tồn tại");
+
+            var dataItem = await _unitOfWork.Repository<DataItem>().GetByIdAsync(task.DataItemId);
+
+            if (task.Status == ProjectTaskStatus.Approved)
+                throw new Exception("Nhiệm vụ này đã được duyệt, không thể sửa đổi.");
+
+            task.LabelData = dto.LabelData;
+            task.Status = ProjectTaskStatus.Submitted;
+            task.LastUpdated = DateTime.Now;
+
+            _unitOfWork.Repository<LabelTask>().Update(task);
+            await _unitOfWork.CompleteAsync();
+
+            if (dataItem != null)
+            {
+                await _notificationService.NotifyProjectUpdateAsync(dataItem.ProjectId);
+            }
+        }
+
+        public async Task ReviewTaskAsync(ReviewTaskDto dto)
+        {
+            var task = await _unitOfWork.Repository<LabelTask>().GetByIdAsync(dto.TaskId);
+            if (task == null) throw new Exception("Task không tồn tại");
+
+            var dataItem = await _unitOfWork.Repository<DataItem>().GetByIdAsync(task.DataItemId);
+
+            if (task.Status == ProjectTaskStatus.New || task.Status == ProjectTaskStatus.InProgress)
+                throw new Exception("Annotator chưa nộp bài, không thể chấm điểm.");
+
+            string notificationMsg = "";
+            if (dto.IsApproved)
+            {
+                task.Status = ProjectTaskStatus.Approved;
+                task.ReviewerComment = string.IsNullOrEmpty(dto.Comment) ? "Đã duyệt" : dto.Comment;
+                task.ErrorType = ErrorType.None;
+                notificationMsg = $"Task {task.Id} của bạn đã được duyệt.";
+            }
+            else
+            {
+                task.Status = ProjectTaskStatus.Rejected;
+                task.ReviewerComment = dto.Comment;
+                task.ErrorType = dto.ErrorType ?? ErrorType.Other;
+
+                notificationMsg = $"Task {task.Id} bị từ chối. Lý do: {dto.Comment}";
+            }
+
+            task.LastUpdated = DateTime.Now;
+            _unitOfWork.Repository<LabelTask>().Update(task);
+            await _unitOfWork.CompleteAsync();
+
+            string action = dto.IsApproved ? "Approve" : "Reject";
+            await _logService.LogAsync(null, action, "Task", task.Id.ToString(), $"Reviewed task {task.Id}");
+
+            if (task.AnnotatorId.HasValue)
+            {
+                await _notificationService.NotifyUserAsync(task.AnnotatorId.Value.ToString(), notificationMsg);
+            }
+
+            if (dataItem != null)
+            {
+                await _notificationService.NotifyProjectUpdateAsync(dataItem.ProjectId);
+            }
         }
 
         public async Task<IEnumerable<TaskViewDto>> GetTasksByAnnotatorAsync(int annotatorId)
         {
             var tasks = await _unitOfWork.Repository<LabelTask>()
-                .FindAsync(t => t.AnnotatorId == annotatorId);
+               .FindAsync(t => t.AnnotatorId == annotatorId);
 
             var result = new List<TaskViewDto>();
 
@@ -75,23 +146,6 @@ namespace DataLabeling.BLL.Services
             return result;
         }
 
-        public async Task SubmitLabelAsync(SubmitLabelDto dto)
-        {
-            var task = await _unitOfWork.Repository<LabelTask>().GetByIdAsync(dto.TaskId);
-            if (task == null) throw new Exception("Nhiệm vụ không tồn tại");
-            if (task.Status == ProjectTaskStatus.Approved)
-            {
-                throw new Exception("Nhiệm vụ này đã được duyệt (Approved), bạn không thể sửa đổi.");
-            }
-
-            task.LabelData = dto.LabelData;
-            task.Status = ProjectTaskStatus.Submitted;
-            task.LastUpdated = DateTime.Now;
-
-            _unitOfWork.Repository<LabelTask>().Update(task);
-            await _unitOfWork.CompleteAsync();
-        }
-
         public async Task<IEnumerable<TaskViewDto>> GetSubmittedTasksAsync()
         {
             var tasks = await _unitOfWork.Repository<LabelTask>()
@@ -111,37 +165,6 @@ namespace DataLabeling.BLL.Services
                 });
             }
             return result;
-        }
-
-        public async Task ReviewTaskAsync(ReviewTaskDto dto)
-        {
-            var task = await _unitOfWork.Repository<LabelTask>().GetByIdAsync(dto.TaskId);
-            if (task == null) throw new Exception("Task không tồn tại");
-
-            if (task.Status == ProjectTaskStatus.New || task.Status == ProjectTaskStatus.InProgress)
-            {
-                throw new Exception("Annotator chưa nộp bài, không thể chấm điểm.");
-            }
-
-            if (dto.IsApproved)
-            {
-                task.Status = ProjectTaskStatus.Approved;
-                task.ReviewerComment = string.IsNullOrEmpty(dto.Comment) ? "Đã duyệt" : dto.Comment;
-                task.ErrorType = ErrorType.None;
-            }
-            else
-            {
-                task.Status = ProjectTaskStatus.Rejected;
-                task.ReviewerComment = dto.Comment;
-                task.ErrorType = dto.ErrorType ?? ErrorType.Other;
-            }
-
-            task.LastUpdated = DateTime.Now;
-            _unitOfWork.Repository<LabelTask>().Update(task);
-            await _unitOfWork.CompleteAsync();
-
-            string action = dto.IsApproved ? "Approve" : "Reject";
-            await _logService.LogAsync(null, action, "Task", task.Id.ToString(), $"Reviewed task {task.Id}");
         }
     }
 }
