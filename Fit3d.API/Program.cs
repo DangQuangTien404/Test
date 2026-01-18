@@ -2,6 +2,8 @@ using FIt3d.DAL.Data;
 using FIt3d.DAL.Repositories.Implements;
 using FIt3d.DAL.Repositories.Interfaces;
 using Fit3d.API.Middlewares;
+using Fit3d.BLL.Interfaces;
+using Fit3d.BLL.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,6 +18,13 @@ builder.Services.AddDbContext<Fit3dDbContext>(options =>
 // Register UnitOfWork and Repository
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+
+// Register Services
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<ICartService, CartService>();
 
 // Configure Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
