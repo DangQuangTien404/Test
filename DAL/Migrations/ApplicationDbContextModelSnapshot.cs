@@ -237,12 +237,18 @@ namespace DAL.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("ConsensusThreshold")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("Deadline")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("ManagerId")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("MaxAssignments")
+                        .HasColumnType("int");
 
                     b.Property<string>("Name")
                         .IsRequired()

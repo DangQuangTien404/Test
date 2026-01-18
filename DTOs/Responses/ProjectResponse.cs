@@ -8,6 +8,9 @@
         public decimal TotalBudget { get; set; }
         public DateTime Deadline { get; set; }
 
+        public int MaxAssignments { get; set; }
+        public int ConsensusThreshold { get; set; }
+
         public string ManagerId { get; set; } = string.Empty;
         public string ManagerName { get; set; } = string.Empty;
         public string ManagerEmail { get; set; } = string.Empty;

@@ -11,20 +11,26 @@ namespace BLL.Services
         private readonly IAssignmentRepository _assignmentRepo;
         private readonly IRepository<DataItem> _dataItemRepo;
         private readonly IRepository<Annotation> _annotationRepo;
+        private readonly IProjectRepository _projectRepo;
 
         public TaskService(
             IAssignmentRepository assignmentRepo,
             IRepository<DataItem> dataItemRepo,
-            IRepository<Annotation> annotationRepo)
+            IRepository<Annotation> annotationRepo,
+            IProjectRepository projectRepo)
         {
             _assignmentRepo = assignmentRepo;
             _dataItemRepo = dataItemRepo;
             _annotationRepo = annotationRepo;
+            _projectRepo = projectRepo;
         }
 
         public async Task AssignTasksToAnnotatorAsync(AssignTaskRequest request)
         {
-            var dataItems = await _assignmentRepo.GetUnassignedDataItemsAsync(request.ProjectId, request.Quantity);
+            var project = await _projectRepo.GetByIdAsync(request.ProjectId);
+            if (project == null) throw new Exception("Project not found");
+
+            var dataItems = await _assignmentRepo.GetUnassignedDataItemsAsync(request.ProjectId, request.Quantity, project.MaxAssignments, request.AnnotatorId);
             if (!dataItems.Any()) throw new Exception("Not enough available data items.");
 
             foreach (var item in dataItems)
@@ -38,7 +44,16 @@ namespace BLL.Services
                     AssignedDate = DateTime.UtcNow
                 };
 
-                item.Status = "Assigned";
+                // Logic for consensus
+                if (item.Assignments.Count + 1 >= project.MaxAssignments)
+                {
+                    item.Status = "Assigned"; // Fully assigned
+                }
+                else
+                {
+                    item.Status = "Processing"; // Partially assigned
+                }
+
                 _dataItemRepo.Update(item);
                 await _assignmentRepo.AddAsync(assignment);
             }

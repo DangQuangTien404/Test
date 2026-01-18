@@ -34,7 +34,8 @@ namespace BLL.Services
                 PricePerLabel = request.PricePerLabel,
                 TotalBudget = request.TotalBudget,
                 Deadline = request.Deadline,
-
+                MaxAssignments = request.MaxAssignments,
+                ConsensusThreshold = request.ConsensusThreshold
             };
             await _projectRepository.AddAsync(project);
             await _projectRepository.SaveChangesAsync();
@@ -100,6 +101,8 @@ namespace BLL.Services
                 PricePerLabel = project.PricePerLabel,
                 TotalBudget = project.TotalBudget,
                 Deadline = project.Deadline,
+                MaxAssignments = project.MaxAssignments,
+                ConsensusThreshold = project.ConsensusThreshold,
                 ManagerId = project.ManagerId,
                 ManagerName = project.Manager?.FullName ?? "Unknown",
                 ManagerEmail = project.Manager?.Email ?? "",
@@ -141,6 +144,8 @@ namespace BLL.Services
             project.PricePerLabel = request.PricePerLabel;
             project.TotalBudget = request.TotalBudget;
             project.Deadline = request.Deadline;
+            project.MaxAssignments = request.MaxAssignments;
+            project.ConsensusThreshold = request.ConsensusThreshold;
 
             _projectRepository.Update(project);
             await _projectRepository.SaveChangesAsync();
@@ -166,31 +171,89 @@ namespace BLL.Services
             if (user.Role != UserRoles.Admin && project.ManagerId != userId)
                 throw new Exception("Unauthorized to export this project.");
 
-            var dataItems = project.DataItems
-                .Where(d => d.Status == "Done")
-                .Select(d => new
+            var exportedItems = new List<object>();
+
+            foreach (var item in project.DataItems)
+            {
+                // Only consider items that are either marked Done or have at least one Completed assignment
+                if (item.Status != "Done" && !item.Assignments.Any(a => a.Status == "Completed"))
+                    continue;
+
+                var completedAssignments = item.Assignments.Where(a => a.Status == "Completed").ToList();
+                if (!completedAssignments.Any()) continue;
+
+                // 1. Simple Case: No Consensus Enforcement or Single Assignment
+                if (project.MaxAssignments <= 1 || project.ConsensusThreshold <= 0)
                 {
-                    DataItemId = d.Id,
-                    StorageUrl = d.StorageUrl,
-                    Annotations = d.Assignments
-                        .Where(a => a.Status == "Completed")
-                        .SelectMany(a => a.Annotations)
-                        .Select(an => new
+                    exportedItems.Add(new
+                    {
+                        DataItemId = item.Id,
+                        StorageUrl = item.StorageUrl,
+                        Annotations = completedAssignments.SelectMany(a => a.Annotations)
+                            .Select(an => new
+                            {
+                                ClassId = an.ClassId,
+                                ClassName = project.LabelClasses.FirstOrDefault(l => l.Id == an.ClassId)?.Name,
+                                Value = JsonDocument.Parse(an.Value).RootElement
+                            })
+                            .ToList()
+                    });
+                    continue;
+                }
+
+                // 2. Consensus Case (Majority Rule)
+                var allAnnotations = completedAssignments.SelectMany(a => a.Annotations).ToList();
+                if (!allAnnotations.Any()) continue;
+
+                // Group by ClassId
+                var consensusGroups = allAnnotations
+                    .GroupBy(an => an.ClassId)
+                    .Select(g => new
+                    {
+                        ClassId = g.Key,
+                        VoteCount = completedAssignments.Count(a => a.Annotations.Any(x => x.ClassId == g.Key)),
+                        SampleValue = g.First().Value
+                    })
+                    .ToList();
+
+                var totalVoters = completedAssignments.Count;
+                bool consensusFound = false;
+                var consensusResults = new List<object>();
+
+                foreach (var group in consensusGroups)
+                {
+                    double agreementPercentage = (double)group.VoteCount / totalVoters * 100.0;
+
+                    if (agreementPercentage >= project.ConsensusThreshold)
+                    {
+                        consensusFound = true;
+                        consensusResults.Add(new
                         {
-                            ClassId = an.ClassId,
-                            ClassName = project.LabelClasses.FirstOrDefault(l => l.Id == an.ClassId)?.Name,
-                            Value = JsonDocument.Parse(an.Value).RootElement
-                        })
-                        .ToList()
-                })
-                .ToList();
+                            ClassId = group.ClassId,
+                            ClassName = project.LabelClasses.FirstOrDefault(l => l.Id == group.ClassId)?.Name,
+                            Value = JsonDocument.Parse(group.SampleValue).RootElement,
+                            ConsensusScore = Math.Round(agreementPercentage, 2)
+                        });
+                    }
+                }
+
+                if (consensusFound)
+                {
+                    exportedItems.Add(new
+                    {
+                        DataItemId = item.Id,
+                        StorageUrl = item.StorageUrl,
+                        Annotations = consensusResults
+                    });
+                }
+            }
 
             var exportData = new
             {
                 ProjectId = project.Id,
                 ProjectName = project.Name,
                 ExportedAt = DateTime.UtcNow,
-                Data = dataItems
+                Data = exportedItems
             };
 
             var json = JsonSerializer.Serialize(exportData, new JsonSerializerOptions { WriteIndented = true });

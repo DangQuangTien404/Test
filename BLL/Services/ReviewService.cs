@@ -12,15 +12,18 @@ namespace BLL.Services
         private readonly IAssignmentRepository _assignmentRepo;
         private readonly IRepository<ReviewLog> _reviewLogRepo;
         private readonly IRepository<DataItem> _dataItemRepo;
+        private readonly IProjectRepository _projectRepo;
 
         public ReviewService(
             IAssignmentRepository assignmentRepo,
             IRepository<ReviewLog> reviewLogRepo,
-            IRepository<DataItem> dataItemRepo)
+            IRepository<DataItem> dataItemRepo,
+            IProjectRepository projectRepo)
         {
             _assignmentRepo = assignmentRepo;
             _reviewLogRepo = reviewLogRepo;
             _dataItemRepo = dataItemRepo;
+            _projectRepo = projectRepo;
         }
 
         public async Task ReviewAssignmentAsync(string reviewerId, ReviewRequest request)
@@ -50,8 +53,16 @@ namespace BLL.Services
                     var dataItem = await _dataItemRepo.GetByIdAsync(assignment.DataItemId);
                     if (dataItem != null)
                     {
-                        dataItem.Status = "Done";
-                        _dataItemRepo.Update(dataItem);
+                        var project = await _projectRepo.GetByIdAsync(assignment.ProjectId);
+                        var completedCount = await _assignmentRepo.GetCompletedCountForDataItemAsync(assignment.DataItemId);
+
+                        // If MaxAssignments > 1, only mark done when sufficient assignments are completed.
+                        // completedCount comes from DB (pre-update), so we add 1 for the current approval.
+                        if (project != null && (completedCount + 1) >= project.MaxAssignments)
+                        {
+                            dataItem.Status = "Done";
+                            _dataItemRepo.Update(dataItem);
+                        }
                     }
                 }
             }

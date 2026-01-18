@@ -24,6 +24,9 @@ namespace DTOs.Entities
         public decimal TotalBudget { get; set; }
         public DateTime Deadline { get; set; }
 
+        public int MaxAssignments { get; set; } = 1;
+        public int ConsensusThreshold { get; set; } = 0;
+
         // Navigation
         public virtual ICollection<LabelClass> LabelClasses { get; set; } = new List<LabelClass>();
         public virtual ICollection<DataItem> DataItems { get; set; } = new List<DataItem>();

@@ -36,12 +36,21 @@ namespace DAL.Repositories
                 .FirstOrDefaultAsync(a => a.Id == id);
         }
 
-        public async Task<List<DataItem>> GetUnassignedDataItemsAsync(int projectId, int quantity)
+        public async Task<List<DataItem>> GetUnassignedDataItemsAsync(int projectId, int quantity, int maxAssignments, string excludeAnnotatorId)
         {
             return await _context.DataItems
-                .Where(d => d.ProjectId == projectId && d.Status == "New")
+                .Include(d => d.Assignments)
+                .Where(d => d.ProjectId == projectId
+                            && d.Status != "Done"
+                            && d.Assignments.Count < maxAssignments
+                            && !d.Assignments.Any(a => a.AnnotatorId == excludeAnnotatorId))
                 .Take(quantity)
                 .ToListAsync();
+        }
+
+        public async Task<int> GetCompletedCountForDataItemAsync(int dataItemId)
+        {
+            return await _dbSet.CountAsync(a => a.DataItemId == dataItemId && a.Status == "Completed");
         }
     }
 }

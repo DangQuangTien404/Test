@@ -15,6 +15,9 @@ namespace DTOs.Requests
         public decimal TotalBudget { get; set; }
 
         public DateTime Deadline { get; set; }
+
+        public int MaxAssignments { get; set; } = 1;
+        public int ConsensusThreshold { get; set; } = 0;
     }
 
     public class UpdateProjectRequest
@@ -23,6 +26,9 @@ namespace DTOs.Requests
         public decimal PricePerLabel { get; set; }
         public decimal TotalBudget { get; set; }
         public DateTime Deadline { get; set; }
+
+        public int MaxAssignments { get; set; } = 1;
+        public int ConsensusThreshold { get; set; } = 0;
     }
 
     public class ImportDataRequest
