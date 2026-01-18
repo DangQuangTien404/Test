@@ -106,6 +106,11 @@ namespace FIt3d.DAL.Repositories.Implements
             TrackChanges();
             return await Context.SaveChangesAsync();
         }
+
+        public async Task<int> SaveChangesAsync()
+        {
+            return await CommitAsync();
+        }
         #endregion
 
         #region Validation

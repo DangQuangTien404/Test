@@ -41,7 +41,7 @@ namespace Fit3d.BLL.Services
 
         public async Task<PagingResponse<OrderDTO>> GetPagingAsync(int page, int size, Guid? userId = null, int? status = null)
         {
-            var result = await _orderRepository.GetPagingListAsync(
+            var result = await _orderRepository.GetPagingListSelectedAsync(
                 selector: x => ToDTO(x),
                 predicate: x => !x.IsDeleted &&
                                 (!userId.HasValue || x.UserId == userId) &&

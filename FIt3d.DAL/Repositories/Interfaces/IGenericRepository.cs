@@ -16,7 +16,7 @@ namespace FIt3d.DAL.Repositories.Interfaces
             Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
             Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null);
 
-        Task<TResult?> SingleOrDefaultAsync<TResult>(
+        Task<TResult?> SingleOrDefaultSelectedAsync<TResult>(
             Expression<Func<T, TResult>> selector,
             Expression<Func<T, bool>>? predicate = null,
             Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
@@ -27,7 +27,7 @@ namespace FIt3d.DAL.Repositories.Interfaces
             Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
             Func<IQueryable<T>, IIncludableQueryable<T, object>>? include = null);
 
-        Task<ICollection<TResult>> GetListAsync<TResult>(
+        Task<ICollection<TResult>> GetListSelectedAsync<TResult>(
             Expression<Func<T, TResult>> selector,
             Expression<Func<T, bool>>? predicate = null,
             Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
@@ -42,7 +42,7 @@ namespace FIt3d.DAL.Repositories.Interfaces
             int page = 1,
             int size = 10);
 
-        Task<PagingResponse<TResult>> GetPagingListAsync<TResult>(
+        Task<PagingResponse<TResult>> GetPagingListSelectedAsync<TResult>(
             Expression<Func<T, TResult>> selector,
             Expression<Func<T, bool>>? predicate = null,
             Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,

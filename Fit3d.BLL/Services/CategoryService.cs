@@ -29,7 +29,7 @@ namespace Fit3d.BLL.Services
 
         public async Task<PagingResponse<CategoryDTO>> GetPagingAsync(int page, int size, string? search = null)
         {
-            var result = await _repository.GetPagingListAsync(
+            var result = await _repository.GetPagingListSelectedAsync(
                 selector: x => ToDTO(x),
                 predicate: x => !x.IsDeleted && (string.IsNullOrEmpty(search) || x.Name.Contains(search)),
                 orderBy: x => x.OrderBy(c => c.DisplayOrder),

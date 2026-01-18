@@ -44,7 +44,7 @@ namespace FIt3d.DAL.Repositories.Implements
             return await query.AsNoTracking().FirstOrDefaultAsync();
         }
 
-        public virtual async Task<TResult?> SingleOrDefaultAsync<TResult>(
+        public virtual async Task<TResult?> SingleOrDefaultSelectedAsync<TResult>(
             Expression<Func<T, TResult>> selector,
             Expression<Func<T, bool>>? predicate = null,
             Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
@@ -76,7 +76,7 @@ namespace FIt3d.DAL.Repositories.Implements
             return await query.AsNoTracking().ToListAsync();
         }
 
-        public virtual async Task<ICollection<TResult>> GetListAsync<TResult>(
+        public virtual async Task<ICollection<TResult>> GetListSelectedAsync<TResult>(
             Expression<Func<T, TResult>> selector,
             Expression<Func<T, bool>>? predicate = null,
             Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
@@ -113,7 +113,7 @@ namespace FIt3d.DAL.Repositories.Implements
             return query.AsNoTracking().ToPagingResponse(page, size, 1);
         }
 
-        public Task<PagingResponse<TResult>> GetPagingListAsync<TResult>(
+        public Task<PagingResponse<TResult>> GetPagingListSelectedAsync<TResult>(
             Expression<Func<T, TResult>> selector,
             Expression<Func<T, bool>>? predicate = null,
             Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,

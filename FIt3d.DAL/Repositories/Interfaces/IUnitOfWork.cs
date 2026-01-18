@@ -17,5 +17,6 @@ namespace FIt3d.DAL.Repositories.Interfaces
 
         int Commit();
         Task<int> CommitAsync();
+        Task<int> SaveChangesAsync();
     }
 }
