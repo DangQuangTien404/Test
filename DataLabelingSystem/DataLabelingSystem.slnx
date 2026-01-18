@@ -1,6 +1,0 @@
-<Solution>
-  <Project Path="DataLabeling.API/DataLabeling.API.csproj" />
-  <Project Path="DataLabeling.BLL/DataLabeling.BLL.csproj" />
-  <Project Path="DataLabeling.Core/DataLabeling.Core.csproj" />
-  <Project Path="DataLabeling.DAL/DataLabeling.DAL.csproj" />
-</Solution>
