@@ -4,6 +4,8 @@ using DTOs.Constants;
 using DTOs.Entities;
 using DTOs.Requests;
 using DTOs.Responses;
+using System.Text.Json;
+using System.Text;
 
 namespace BLL.Services
 {
@@ -46,7 +48,7 @@ namespace BLL.Services
                 ManagerId = project.ManagerId,
                 ManagerName = manager.FullName, 
                 ManagerEmail = manager.Email,
-                Labels = new List<string>(),   
+                Labels = new List<LabelResponse>(),
                 TotalDataItems = 0,            
                 ProcessedItems = 0
             };
@@ -101,7 +103,13 @@ namespace BLL.Services
                 ManagerId = project.ManagerId,
                 ManagerName = project.Manager?.FullName ?? "Unknown",
                 ManagerEmail = project.Manager?.Email ?? "",
-                Labels = project.LabelClasses.Select(l => l.Name).ToList(),
+                Labels = project.LabelClasses.Select(l => new LabelResponse
+                {
+                    Id = l.Id,
+                    Name = l.Name,
+                    Color = l.Color,
+                    GuideLine = l.GuideLine
+                }).ToList(),
                 TotalDataItems = project.DataItems.Count,
                 ProcessedItems = project.DataItems.Count(d => d.Status == "Done")
             };
@@ -145,6 +153,42 @@ namespace BLL.Services
 
             _projectRepository.Delete(project);
             await _projectRepository.SaveChangesAsync();
+        }
+
+        public async Task<byte[]> ExportProjectDataAsync(int projectId)
+        {
+            var project = await _projectRepository.GetProjectForExportAsync(projectId);
+            if (project == null) throw new Exception("Project not found");
+
+            var dataItems = project.DataItems
+                .Where(d => d.Status == "Done")
+                .Select(d => new
+                {
+                    DataItemId = d.Id,
+                    StorageUrl = d.StorageUrl,
+                    Annotations = d.Assignments
+                        .Where(a => a.Status == "Completed")
+                        .SelectMany(a => a.Annotations)
+                        .Select(an => new
+                        {
+                            ClassId = an.ClassId,
+                            ClassName = project.LabelClasses.FirstOrDefault(l => l.Id == an.ClassId)?.Name,
+                            Value = JsonDocument.Parse(an.Value).RootElement
+                        })
+                        .ToList()
+                })
+                .ToList();
+
+            var exportData = new
+            {
+                ProjectId = project.Id,
+                ProjectName = project.Name,
+                ExportedAt = DateTime.UtcNow,
+                Data = dataItems
+            };
+
+            var json = JsonSerializer.Serialize(exportData, new JsonSerializerOptions { WriteIndented = true });
+            return Encoding.UTF8.GetBytes(json);
         }
     }
 }

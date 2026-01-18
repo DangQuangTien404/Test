@@ -155,5 +155,19 @@ namespace API.Controllers
                 return BadRequest(new { Message = ex.Message });
             }
         }
+
+        [HttpGet("{id}/export")]
+        public async Task<IActionResult> ExportProject(int id)
+        {
+            try
+            {
+                var fileContent = await _projectService.ExportProjectDataAsync(id);
+                return File(fileContent, "application/json", $"project-{id}-export.json");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+        }
     }
 }
