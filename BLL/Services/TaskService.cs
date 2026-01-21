@@ -1,4 +1,3 @@
-using BLL.Exceptions;
 ﻿using BLL.Interfaces;
 using DAL.Interfaces;
 using DTOs.Entities;
@@ -56,17 +55,20 @@ namespace BLL.Services
                 {
                     UserId = request.AnnotatorId,
                     ProjectId = request.ProjectId,
-                    TotalAssigned = 0,
+                    TotalAssigned = dataItems.Count,
                     EfficiencyScore = 100,
                     EstimatedEarnings = 0,
                     Date = DateTime.UtcNow
                 };
                 await _statsRepo.AddAsync(stats);
             }
+            else
+            {
+                stats.TotalAssigned += dataItems.Count;
+                stats.Date = DateTime.UtcNow;
+                _statsRepo.Update(stats);
+            }
 
-            stats.TotalAssigned += dataItems.Count;
-            stats.Date = DateTime.UtcNow;
-            _statsRepo.Update(stats);
             await _assignmentRepo.SaveChangesAsync();
         }
 
@@ -84,7 +86,7 @@ namespace BLL.Services
                 RejectReason = (a.Status == "Rejected")
                     ? a.ReviewLogs.OrderByDescending(r => r.CreatedAt).FirstOrDefault()?.Comment
                     : null,
-                Deadline = a.Project.Deadline
+                Deadline = a.Project?.Deadline ?? DateTime.MinValue
             }).ToList();
         }
 
@@ -93,7 +95,7 @@ namespace BLL.Services
             var assignment = await _assignmentRepo.GetAssignmentWithDetailsAsync(assignmentId);
 
             if (assignment == null) return null;
-            if (assignment.AnnotatorId != annotatorId) throw new UnauthorizedAccessException("Unauthorized");
+            if (assignment.AnnotatorId != annotatorId) throw new Exception("Unauthorized");
 
             if (assignment.Status == "Assigned")
             {
@@ -117,7 +119,7 @@ namespace BLL.Services
                 ProjectName = assignment.Project?.Name ?? "",
                 Status = assignment.Status,
                 RejectReason = rejectReason,
-
+                Deadline = assignment.Project?.Deadline ?? DateTime.MinValue,
                 Labels = assignment.Project?.LabelClasses.Select(l => new LabelResponse
                 {
                     Id = l.Id,
@@ -125,11 +127,11 @@ namespace BLL.Services
                     Color = l.Color,
                     GuideLine = l.GuideLine
                 }).ToList() ?? new List<LabelResponse>(),
-                ExistingAnnotations = assignment.Annotations.Select(an => new AnnotationResponse
+                ExistingAnnotations = assignment.Annotations.Select(an => new
                 {
-                    ClassId = an.ClassId,
+                    an.ClassId,
                     Value = JsonDocument.Parse(an.Value).RootElement
-                }).ToList()
+                }).ToList<object>()
             };
         }
 
@@ -141,11 +143,11 @@ namespace BLL.Services
         public async Task SubmitTaskAsync(string annotatorId, SubmitAnnotationRequest request)
         {
             var assignment = await _assignmentRepo.GetAssignmentWithDetailsAsync(request.AssignmentId);
-            if (assignment == null) throw new NotFoundException("Task not found");
+            if (assignment == null) throw new Exception("Task not found");
             if (assignment.AnnotatorId != annotatorId)
-                throw new UnauthorizedAccessException("You are not authorized to submit this task.");
+                throw new Exception("You are not authorized to submit this task.");
             if (assignment.Status == "Completed")
-                throw new ValidationException("This task is already completed.");
+                throw new Exception("This task is already completed.");
             if (assignment.Annotations != null && assignment.Annotations.Any())
             {
                 foreach (var oldAnno in assignment.Annotations)
@@ -155,15 +157,6 @@ namespace BLL.Services
             }
             foreach (var item in request.Annotations)
             {
-                try
-                {
-                    JsonDocument.Parse(item.ValueJson);
-                }
-                catch
-                {
-                    throw new ValidationException("Invalid JSON format in annotation value.");
-                }
-
                 await _annotationRepo.AddAsync(new Annotation
                 {
                     AssignmentId = assignment.Id,

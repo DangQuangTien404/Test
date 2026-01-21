@@ -21,8 +21,12 @@ namespace API.Controllers
         [HttpPost("assign")]
         public async Task<IActionResult> AssignTasks([FromBody] AssignTaskRequest request)
         {
-            await _taskService.AssignTasksToAnnotatorAsync(request);
-            return Ok(new { Message = "Tasks assigned successfully" });
+            try
+            {
+                await _taskService.AssignTasksToAnnotatorAsync(request);
+                return Ok(new { Message = "Tasks assigned successfully" });
+            }
+            catch (Exception ex) { return BadRequest(new { Message = ex.Message }); }
         }
 
         [HttpGet("dashboard-stats")]
@@ -52,9 +56,13 @@ namespace API.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            var task = await _taskService.GetTaskDetailAsync(assignmentId, userId);
-            if (task == null) return NotFound();
-            return Ok(task);
+            try
+            {
+                var task = await _taskService.GetTaskDetailAsync(assignmentId, userId);
+                if (task == null) return NotFound();
+                return Ok(task);
+            }
+            catch (Exception ex) { return BadRequest(new { Message = ex.Message }); }
         }
 
         [HttpPost("submit")]
@@ -63,8 +71,15 @@ namespace API.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            await _taskService.SubmitTaskAsync(userId, request);
-            return Ok(new { Message = "Task submitted successfully" });
+            try
+            {
+                await _taskService.SubmitTaskAsync(userId, request);
+                return Ok(new { Message = "Task submitted successfully" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
         }
     }
 }

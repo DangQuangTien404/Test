@@ -11,13 +11,7 @@
         public DateTime Deadline { get; set; }
 
         public List<LabelResponse> Labels { get; set; } = new List<LabelResponse>();
-        public List<AnnotationResponse>? ExistingAnnotations { get; set; }
-    }
-
-    public class AnnotationResponse
-    {
-        public int ClassId { get; set; }
-        public object Value { get; set; } = new object();
+        public List<object>? ExistingAnnotations { get; set; }
     }
 
     public class AnnotatorStatsResponse
