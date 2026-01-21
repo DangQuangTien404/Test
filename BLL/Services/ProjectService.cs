@@ -120,10 +120,38 @@ namespace BLL.Services
             var project = await _projectRepository.GetProjectWithDetailsAsync(projectId);
             if (project == null) return null;
 
+            var annotators = project.DataItems
+                .SelectMany(d => d.Assignments)
+                .Select(a => a.Annotator)
+                .Where(u => u != null);
+
+            var reviewers = project.DataItems
+                .SelectMany(d => d.Assignments)
+                .SelectMany(a => a.ReviewLogs)
+                .Select(r => r.Reviewer)
+                .Where(u => u != null);
+
+            var members = annotators.Concat(reviewers)
+                .GroupBy(u => u.Id)
+                .Select(g => g.First())
+                .Select(u => new ProjectMemberResponse
+                {
+                    Id = u.Id,
+                    Name = u.FullName,
+                    Email = u.Email,
+                    Role = u.Role
+                })
+                .ToList();
+
+            var totalItems = project.DataItems.Count;
+            var processedItems = project.DataItems.Count(d => d.Status == "Done");
+            decimal progress = totalItems > 0 ? (decimal)processedItems / totalItems * 100 : 0;
+
             return new ProjectDetailResponse
             {
                 Id = project.Id,
                 Name = project.Name,
+                Description = project.Description,
                 PricePerLabel = project.PricePerLabel,
                 TotalBudget = project.TotalBudget,
                 Deadline = project.Deadline,
@@ -137,8 +165,10 @@ namespace BLL.Services
                     Color = l.Color,
                     GuideLine = l.GuideLine
                 }).ToList(),
-                TotalDataItems = project.DataItems.Count,
-                ProcessedItems = project.DataItems.Count(d => d.Status == "Done")
+                TotalDataItems = totalItems,
+                ProcessedItems = processedItems,
+                Progress = Math.Round(progress, 2),
+                Members = members
             };
         }
 
@@ -165,6 +195,7 @@ namespace BLL.Services
             if (project == null) throw new Exception("Project not found");
 
             project.Name = request.Name;
+            project.Description = request.Description;
             project.PricePerLabel = request.PricePerLabel;
             project.TotalBudget = request.TotalBudget;
             project.Deadline = request.Deadline;

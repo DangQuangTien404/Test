@@ -14,6 +14,12 @@ namespace DAL.Repositories
                 .Include(p => p.Manager)
                 .Include(p => p.LabelClasses)
                 .Include(p => p.DataItems)
+                    .ThenInclude(d => d.Assignments)
+                        .ThenInclude(a => a.Annotator)
+                .Include(p => p.DataItems)
+                    .ThenInclude(d => d.Assignments)
+                        .ThenInclude(a => a.ReviewLogs)
+                            .ThenInclude(r => r.Reviewer)
                 .FirstOrDefaultAsync(p => p.Id == id);
         }
 
