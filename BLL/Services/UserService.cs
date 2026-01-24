@@ -51,7 +51,18 @@ namespace BLL.Services
             var user = await _userRepository.GetUserByEmailAsync(email); 
             if (user == null) return null;
 
-            bool isValidPassword = BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
+            if (string.IsNullOrEmpty(user.PasswordHash)) return null;
+
+            bool isValidPassword;
+            try
+            {
+                isValidPassword = BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
+            }
+            catch (BCrypt.Net.SaltParseException)
+            {
+                return null;
+            }
+
             if (!isValidPassword) return null;
 
             return GenerateJwtToken(user);
