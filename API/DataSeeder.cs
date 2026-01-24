@@ -1,8 +1,8 @@
 ﻿using DAL;
 using DTOs.Constants;
 using DTOs.Entities;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace API
 {
@@ -14,53 +14,36 @@ namespace API
             {
                 var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-                // Lưu ý: Nếu User của bạn không kế thừa IdentityUser, UserManager có thể gặp vấn đề.
-                // Tuy nhiên code dưới đây đã sửa để chỉ gán các trường có thật trong Entity User của bạn.
-                var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
-                var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-
-                // 1. Tạo Roles
-                string[] roles = { UserRoles.Admin, UserRoles.Manager, UserRoles.Annotator };
-                foreach (var role in roles)
-                {
-                    if (!await roleManager.RoleExistsAsync(role))
-                        await roleManager.CreateAsync(new IdentityRole(role));
-                }
-
-                // 2. Tạo Manager
+                // 1. Tạo Users (Manager & Staff)
                 var managerEmail = "Manager@gmail.com";
-                var managerUser = await userManager.FindByEmailAsync(managerEmail);
+                var managerUser = await context.Users.FirstOrDefaultAsync(u => u.Email == managerEmail);
                 if (managerUser == null)
                 {
                     managerUser = new User
                     {
-                        // Đã xóa UserName và IsActive vì class User của bạn không có
                         Email = managerEmail,
                         FullName = "Manager Boss",
-                        Role = UserRoles.Manager
+                        Role = UserRoles.Manager,
+                        PasswordHash = "123456"
                     };
-                    // UserManager sẽ tự băm password
-                    await userManager.CreateAsync(managerUser, "123456");
-                    await userManager.AddToRoleAsync(managerUser, UserRoles.Manager);
+                    context.Users.Add(managerUser);
                 }
 
-                // 3. Tạo 5 Annotator (Staff)
                 var annotators = new List<User>();
                 for (int i = 1; i <= 5; i++)
                 {
                     var email = $"Staff{i}@gmail.com";
-                    var user = await userManager.FindByEmailAsync(email);
+                    var user = await context.Users.FirstOrDefaultAsync(u => u.Email == email);
                     if (user == null)
                     {
                         user = new User
                         {
-                            // Đã xóa UserName và IsActive
                             Email = email,
                             FullName = $"Staff Annotator {i}",
-                            Role = UserRoles.Annotator
+                            Role = UserRoles.Annotator,
+                            PasswordHash = "123456"
                         };
-                        await userManager.CreateAsync(user, "123456");
-                        await userManager.AddToRoleAsync(user, UserRoles.Annotator);
+                        context.Users.Add(user);
                         annotators.Add(user);
                     }
                     else
@@ -69,69 +52,99 @@ namespace API
                     }
                 }
 
-                // 4. Tạo Project & DataItems & Assignments
+                await context.SaveChangesAsync();
+
+                // 2. Tạo Project & DataItems & Assignments
                 if (!context.Projects.Any())
                 {
                     var projects = new List<Project>();
 
                     for (int p = 1; p <= 5; p++)
                     {
+                        // A. Tạo Project
                         var project = new Project
                         {
                             Name = $"Dự án Gán Nhãn Xe Hơi {p}",
                             Description = "Dự án test dữ liệu cho FE team.",
                             ManagerId = managerUser.Id,
-
-                            // Đã sửa: StartDate -> CreatedDate
                             CreatedDate = DateTime.UtcNow,
-
-                            // Đã sửa: BudgetPerItem -> PricePerLabel
                             PricePerLabel = 1000 + (p * 100),
-
                             TotalBudget = 1000000,
                             Deadline = DateTime.UtcNow.AddDays(10 + p),
-
-                            // Đã xóa: AllowSelfAssignment, Status (vì Entity Project không có)
                             AllowGeometryTypes = "Rectangle"
                         };
 
+                        // B. Tạo Label Classes (Nhãn)
+                        var labels = new List<LabelClass>
+                        {
+                            new LabelClass { Name = "Car", Color = "#FF0000", GuideLine = "Vẽ bao quanh xe" },
+                            new LabelClass { Name = "Bike", Color = "#00FF00", GuideLine = "Vẽ bao quanh xe đạp" },
+                            new LabelClass { Name = "Bus", Color = "#0000FF", GuideLine = "Vẽ xe buýt" }
+                        };
+                        project.LabelClasses = labels;
+
+                        // C. Tạo DataItems (Ảnh)
                         var dataItems = new List<DataItem>();
                         for (int d = 1; d <= 20; d++)
                         {
                             dataItems.Add(new DataItem
                             {
-                                // Đã sửa: DataUrl -> StorageUrl
                                 StorageUrl = $"https://via.placeholder.com/600x400?text=Project{p}_Image{d}",
-
-                                // Đã xóa: Format (Entity không có)
                                 Status = "New",
-
-                                // Đã sửa: UploadedAt -> UploadedDate
                                 UploadedDate = DateTime.UtcNow,
                                 MetaData = "{}"
                             });
                         }
 
-                        // Giả lập giao việc (Assignment)
+                        // D. Giả lập giao việc (Assignment)
                         int staffIndex = 0;
-                        for (int k = 0; k < 10; k++)
+                        for (int k = 0; k < 15; k++) // Giao 15 ảnh đầu
                         {
                             var item = dataItems[k];
                             item.Status = "Assigned";
 
                             var assignedStaff = annotators[staffIndex % annotators.Count];
 
-                            item.Assignments = new List<Assignment>
+                            var status = "Assigned";
+                            if (k >= 5 && k < 10) status = "Submitted";
+                            if (k >= 10) status = "Rejected";
+
+                            var assignment = new Assignment
                             {
-                                new Assignment
-                                {
-                                    AnnotatorId = assignedStaff.Id,
-                                    Status = k % 2 == 0 ? "Assigned" : "Submitted",
-                                    
-                                    // Đã sửa: AssignedAt -> AssignedDate
-                                    AssignedDate = DateTime.UtcNow
-                                }
+                                AnnotatorId = assignedStaff.Id,
+                                Status = status,
+                                AssignedDate = DateTime.UtcNow,
+                                SubmittedAt = (status == "Submitted" || status == "Rejected") ? DateTime.UtcNow : null
                             };
+
+                            // Nếu trạng thái là Submitted hoặc Rejected -> Tạo Annotation Giả
+                            if (status == "Submitted" || status == "Rejected")
+                            {
+                                assignment.Annotations = new List<Annotation>
+                                {
+                                    new Annotation
+                                    {
+                                        LabelClass = labels[0],
+                                        Value = JsonSerializer.Serialize(new { x = 10, y = 10, width = 100, height = 100 })
+                                    }
+                                };
+                            }
+
+                            // Nếu trạng thái là Rejected -> Tạo ReviewLog (ĐÃ SỬA: Xóa Verdict)
+                            if (status == "Rejected")
+                            {
+                                assignment.ReviewLogs = new List<ReviewLog>
+                                {
+                                    new ReviewLog
+                                    {
+                                        ReviewerId = managerUser.Id,
+                                        Comment = "Vẽ sai rồi, hình bị lệch quá. Vẽ lại đi em!",
+                                        CreatedAt = DateTime.UtcNow
+                                    }
+                                };
+                            }
+
+                            item.Assignments = new List<Assignment> { assignment };
                             staffIndex++;
                         }
 
