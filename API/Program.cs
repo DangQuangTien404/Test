@@ -1,4 +1,4 @@
-﻿using API.Middlewares;
+using API.Middlewares;
 using BLL.Interfaces;
 using BLL.Services;
 using DAL;
@@ -21,7 +21,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 // --- A. Database Context ---
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    if (builder.Configuration.GetValue<bool>("UseInMemoryDatabase"))
+    {
+        options.UseInMemoryDatabase("InMemoryDbForTesting");
+    }
+    else
+    {
+        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+    }
+});
 
 // --- B. Đăng ký Repositories ---
 // Đăng ký Repository Generic trước
@@ -153,3 +162,8 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+namespace API
+{
+    public partial class Program { }
+}
