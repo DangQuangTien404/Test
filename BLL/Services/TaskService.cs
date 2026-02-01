@@ -2,8 +2,8 @@
 using Core.DTOs.Requests;
 using Core.DTOs.Responses;
 using DAL.Interfaces;
-using DTOs.Constants;
-using DTOs.Entities;
+using Core.Constants;
+using Core.Entities;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
