@@ -1,5 +1,5 @@
-﻿using DTOs.Requests;
-using DTOs.Responses;
+﻿using Core.DTOs.Requests;
+using Core.DTOs.Responses;
 
 namespace BLL.Interfaces
 {
@@ -12,5 +12,6 @@ namespace BLL.Interfaces
         Task<AssignmentResponse> GetAssignmentByIdAsync(int assignmentId, string userId);
         Task SaveDraftAsync(string userId, SubmitAnnotationRequest request);
         Task SubmitTaskAsync(string userId, SubmitAnnotationRequest request);
+        Task<AssignmentResponse> JumpToDataItemAsync(int projectId, int dataItemId, string userId);
     }
 }

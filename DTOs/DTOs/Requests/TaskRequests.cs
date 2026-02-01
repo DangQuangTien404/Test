@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace DTOs.Requests
+namespace Core.DTOs.Requests
 {
     /// <summary>
     /// Request model for assigning tasks to an annotator.
@@ -27,6 +27,7 @@ namespace DTOs.Requests
         /// <example>10</example>
         [Required]
         public int Quantity { get; set; }
+        public string ReviewerId { get; set; }
     }
 
     public class SubmitAnnotationRequest

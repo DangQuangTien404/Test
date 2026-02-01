@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace DTOs.Requests
+namespace Core.DTOs.Requests
 {
     /// <summary>
     /// Request model for user registration.
@@ -113,5 +113,20 @@ namespace DTOs.Requests
         /// </summary>
         /// <example>NewSecurePass456!</example>
         public string? Password { get; set; }
+    }
+    public class ChangePasswordRequest
+    {
+        [Required]
+        public string OldPassword { get; set; } = string.Empty;
+
+        [Required]
+        [MinLength(6)]
+        public string NewPassword { get; set; } = string.Empty;
+    }
+
+    public class UpdateProfileRequest
+    {
+        public string? FullName { get; set; }
+        public string? AvatarUrl { get; set; }
     }
 }

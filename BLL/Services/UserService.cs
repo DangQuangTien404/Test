@@ -1,8 +1,8 @@
 ﻿using BLL.Interfaces;
+using Core.DTOs.Requests;
 using DAL.Interfaces;
 using DTOs.Constants;
 using DTOs.Entities;
-using DTOs.Requests;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -50,7 +50,10 @@ namespace BLL.Services
         {
             var user = await _userRepository.GetUserByEmailAsync(email);
             if (user == null) return null;
-
+            if (!user.IsActive)
+            {
+                throw new ArgumentException("Account is deactivated or banned.");
+            }
             if (string.IsNullOrEmpty(user.PasswordHash)) return null;
 
             bool isValidPassword;
@@ -124,13 +127,47 @@ namespace BLL.Services
             _userRepository.Update(user);
             await _userRepository.SaveChangesAsync();
         }
+        public async Task ChangePasswordAsync(string userId, string oldPassword, string newPassword)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null) throw new Exception("User not found");
+            if (!BCrypt.Net.BCrypt.Verify(oldPassword, user.PasswordHash))
+            {
+                throw new Exception("Old password is incorrect");
+            }
 
-        public async Task DeleteUserAsync(string userId)
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            _userRepository.Update(user);
+            await _userRepository.SaveChangesAsync();
+        }
+
+        public async Task UpdateProfileAsync(string userId, UpdateProfileRequest request)
         {
             var user = await _userRepository.GetByIdAsync(userId);
             if (user == null) throw new Exception("User not found");
 
-            _userRepository.Delete(user);
+            if (!string.IsNullOrEmpty(request.FullName)) user.FullName = request.FullName;
+            if (!string.IsNullOrEmpty(request.AvatarUrl)) user.AvatarUrl = request.AvatarUrl;
+
+            _userRepository.Update(user);
+            await _userRepository.SaveChangesAsync();
+        }
+        public async Task DeleteUserAsync(string userId)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null) throw new Exception("User not found");
+            user.IsActive = false;
+            _userRepository.Update(user);
+            await _userRepository.SaveChangesAsync();
+        }
+
+        public async Task ToggleUserStatusAsync(string userId, bool isActive)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user == null) throw new Exception("User not found");
+            user.IsActive = isActive;
+
+            _userRepository.Update(user);
             await _userRepository.SaveChangesAsync();
         }
 
